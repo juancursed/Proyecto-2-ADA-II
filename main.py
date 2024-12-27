@@ -18,34 +18,65 @@ def cargar_archivo():
             messagebox.showerror("Error", f"No se pudo cargar el archivo: {e}")
 
 def procesar_datos(datos):
-    """Procesa el contenido del archivo y genera el archivo .dzn."""
+    """Procesa el contenido del archivo de acuerdo con el formato especificado."""
     try:
-        # Extracción de datos del archivo
-        n = int(datos[0].strip())
-        coordenadas = [list(map(int, linea.split())) for linea in datos[1:n+1]]
-        tamano_matriz = int(datos[n+1].strip())
-        matriz_pob = [list(map(int, datos[i].split())) for i in range(n+2, n+2+tamano_matriz)]
-        matriz_emp = [list(map(int, datos[i].split())) for i in range(n+2+tamano_matriz, n+2+2*tamano_matriz)]
-        max_sedes = int(datos[-1].strip())
+        # Paso 1: Leer el número de posiciones existentes (n)
+        n = int(datos[0].strip())  # Primera línea
+        if len(datos) < n + 3:
+            raise ValueError("El archivo no contiene suficientes líneas para las coordenadas y el tamaño de la matriz.")
 
+        # Paso 2: Leer las coordenadas de las posiciones existentes
+        coordenadas = []
+        for i in range(1, n + 1):  # Siguientes n líneas
+            coordenadas.append(list(map(int, datos[i].split())))
+        
+        # Paso 3: Leer el tamaño de las matrices
+        tamano_matriz = int(datos[n + 1].strip())  # Línea después de las coordenadas
+        
+        # Validar que el archivo tenga suficientes líneas para las matrices y max_sedes
+        if len(datos) < n + 2 + 2 * tamano_matriz + 1:
+            raise ValueError("El archivo no contiene suficientes líneas para las matrices de población y entorno empresarial.")
 
+        # Paso 4: Leer la matriz de población
+        matriz_pob = []
+        inicio_pob = n + 2  # Inicio de la matriz de población
+        for i in range(inicio_pob, inicio_pob + tamano_matriz):
+            matriz_pob.append(list(map(int, datos[i].split())))
+
+        # Paso 5: Leer la matriz de entorno empresarial
+        matriz_emp = []
+        inicio_emp = inicio_pob + tamano_matriz  # Inicio de la matriz de entorno empresarial
+        for i in range(inicio_emp, inicio_emp + tamano_matriz):
+            matriz_emp.append(list(map(int, datos[i].split())))
+
+        # Paso 6: Leer el número de programas a ubicar (max_sedes)
+        max_sedes = int(datos[-1].strip())  # Última línea
+
+        # Validaciones adicionales
+        if len(matriz_pob) != tamano_matriz or any(len(fila) != tamano_matriz for fila in matriz_pob):
+            raise ValueError("La matriz de población no tiene el tamaño especificado.")
+        if len(matriz_emp) != tamano_matriz or any(len(fila) != tamano_matriz for fila in matriz_emp):
+            raise ValueError("La matriz de entorno empresarial no tiene el tamaño especificado.")
+        for x, y in coordenadas:
+            if not (0 <= x < tamano_matriz and 0 <= y < tamano_matriz):
+                raise ValueError(f"Coordenada fuera de rango: ({x}, {y}).")
+
+        # Crear la matriz preseleccionada
         preseleccionadas = [[0] * tamano_matriz for _ in range(tamano_matriz)]
-        for i in range(tamano_matriz):
-            for j in range(tamano_matriz):
-                if [i, j] in coordenadas:
-                    preseleccionadas[i][j] = 1
-                
+        for x, y in coordenadas:
+            preseleccionadas[x][y] = 1
 
+        # Continuar con el procesamiento
         archivo_dzn = "datos.dzn"
         generar_archivo_dzn(archivo_dzn, tamano_matriz, matriz_pob, matriz_emp, preseleccionadas, max_sedes)
         resultado = ejecutar_minizinc_con_dzn(archivo_dzn, "./sedes.mzn")
 
         # Mostrar el resultado
         mostrar_resultado(resultado)
+
     except Exception as e:
         messagebox.showerror("Error", f"Error al procesar los datos: {e}")
         print(traceback.format_exc())
-        messagebox.showerror("Error", f"Error al procesar los datos: {e}")
 
 def generar_archivo_dzn(nombre_archivo, n, matriz_pob, matriz_emp, preseleccionados, max_sedes):
     """Genera un archivo .dzn con el formato correcto para MiniZinc."""
